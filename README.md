@@ -73,7 +73,7 @@ safescope scan http://127.0.0.1:8000 --skip tls
 ```
 
 ```text
-SafeScope v0.2.0
+SafeScope v0.2.1
 Target : http://127.0.0.1:8000/
 Grade  :  F   score 5/100  (0.0s)
 
@@ -166,7 +166,7 @@ jobs:
   safescope:
     runs-on: ubuntu-latest
     steps:
-      - uses: Karim-Bazooka/SafeScope@v0.2.0
+      - uses: Karim-Bazooka/SafeScope@v0.2.1
         with:
           target: https://staging.example.com
           fail-on: medium

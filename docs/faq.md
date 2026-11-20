@@ -53,7 +53,7 @@ Generate SARIF and upload it with GitHub's official action:
 permissions:
   security-events: write
 steps:
-  - run: pip install git+https://github.com/Karim-Bazooka/SafeScope.git
+  - run: pip install safescope-scanner
   - run: safescope scan https://staging.example.com -f sarif -o safescope.sarif
   - uses: github/codeql-action/upload-sarif@v4
     with:
