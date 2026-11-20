@@ -19,10 +19,45 @@ from safescope.tls import inspect_tls
 
 
 class Handler(http.server.BaseHTTPRequestHandler):
+    http_port: int = 0
+    https_port: int = 0
+
     def log_message(self, *args):  # keep test output clean
         pass
 
     def do_GET(self):
+        if self.path == "/relative/start":
+            self.send_response(302)
+            self.send_header("Location", "next")
+            self.end_headers()
+            return
+
+        if self.path == "/chain/start":
+            self.send_response(302)
+            self.send_header(
+                "Location",
+                f"https://127.0.0.1:{self.https_port}/chain/secure",
+            )
+            self.end_headers()
+            return
+
+        if self.path == "/chain/secure":
+            self.send_response(301)
+            self.send_header(
+                "Location",
+                f"http://127.0.0.1:{self.http_port}/chain/again",
+            )
+            self.end_headers()
+            return
+
+        if self.path == "/chain/again":
+            self.send_response(307)
+            self.send_header(
+                "Location",
+                f"https://127.0.0.1:{self.https_port}/chain/final",
+            )
+            self.end_headers()
+            return
         if self.path == "/redirect":
             self.send_response(301)
             self.send_header("Location", "/final")
@@ -96,6 +131,36 @@ def test_client_follows_and_records_redirects(http_port):
     assert resp.url.endswith("/final")
     assert resp.redirect_chain == [(301, f"http://127.0.0.1:{http_port}/redirect")]
     assert len(resp.headers.get_all("Set-Cookie")) == 2
+
+
+def test_client_resolves_relative_redirect_location(http_port):
+    start_url = f"http://127.0.0.1:{http_port}/relative/start"
+
+    resp = HttpClient(timeout=5).get(start_url)
+
+    assert resp.status == 200
+    assert resp.url == f"http://127.0.0.1:{http_port}/relative/next"
+    assert resp.redirect_chain == [(302, start_url)]
+
+
+def test_client_follows_http_https_redirect_chain(http_port, https_port):
+    Handler.http_port = http_port
+    Handler.https_port = https_port
+
+    start_url = f"http://127.0.0.1:{http_port}/chain/start"
+    secure_url = f"https://127.0.0.1:{https_port}/chain/secure"
+    again_url = f"http://127.0.0.1:{http_port}/chain/again"
+    final_url = f"https://127.0.0.1:{https_port}/chain/final"
+
+    resp = HttpClient(timeout=5, verify_tls=False).get(start_url)
+
+    assert resp.status == 200
+    assert resp.url == final_url
+    assert resp.redirect_chain == [
+        (302, start_url),
+        (301, secure_url),
+        (307, again_url),
+    ]
 
 
 def test_client_detects_redirect_loops(http_port):
